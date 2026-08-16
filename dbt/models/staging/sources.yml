@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: raw
+    database: nusarasa_dw
+    schema: raw
+    tables:
+      - name: orders_d2c
+        columns:
+          - name: order_id
+            tests:
+              - unique:
+                  config:
+                    severity: warn   # intentionally warn: we know that raw is unclean
+      - name: order_items_d2c
+      - name: ab_exposures
+      - name: sku_master
+      - name: inventory_daily
+      - name: shipments_d2c
+      - name: customers_d2c
+      - name: sales_b2b
+      - name: production_batches
+      - name: bom
