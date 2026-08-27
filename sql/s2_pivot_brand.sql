@@ -8,7 +8,7 @@
 --   - return lines (qty < 0, FAULT I3) would wrongly reduce revenue
 --   - cancelled orders produce no revenue
 --
--- Why staging, not raw: the staging layer already fixes string prices
+-- Why staging, instead of raw: the staging layer already fixes string prices
 --   ('Rp12.500'), mis-padded SKUs, and webhook duplicates.
 --
 -- Result: 6 rows (Jan-Jun 2026)
@@ -32,10 +32,5 @@ WHERE i.is_return = false
   AND o.order_status != 'cancelled'
 GROUP BY 1
 ORDER BY 1;
-
-
-
-
-
 
 -- Note: revenue uses unit_price (what the customer paid), not list_price.
