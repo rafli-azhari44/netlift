@@ -1,30 +1,36 @@
+-- =====================================================
 -- S13: BOM explosion for a 50,000 pcs production run of KRK-BLD-080
---
+-- =====================================================
 -- The BOM is nested: KRK-BLD-080 needs Balado Seasoning Mix, and that
--- mix has its own recipe. Depth is not stored anywhere — it is implied
--- by the parent/component chain, so the query cannot assume how many
--- levels exist.
+--   mix has its own recipe. Depth is not stored anywhere; it is implied
+--   by the parent/component chain, so the query cannot assume how many
+--   levels exist.
 --
--- WITH RECURSIVE handles this. The anchor takes the direct components of
--- the finished good; the recursive part joins the table back to itself
--- (b.parent_code = e.component_code) to find each component's own
--- children. It stops on its own when a pass returns no new rows — raw
--- materials have no children.
+-- WITH RECURSIVE handles this. The anchor takes the direct components
+--   of the finished good; the recursive part joins the table back to
+--   itself (b.parent_code = e.component_code) to find each component's
+--   own children. It stops on its own when a pass returns no new rows,
+--   because raw materials have no children.
 --
 -- Quantities multiply down the chain: e.total_qty carries the parent's
--- computed quantity into the child. 50,000 x 0.012 = 600 kg of mix,
--- then 600 x 0.400 = 240 kg of chili powder.
+--   computed quantity into the child. 50,000 x 0.012 = 600 kg of mix,
+--   then 600 x 0.4 = 240 kg of chili powder.
 --
 -- Reading the result: levels must NOT be summed together. The 600 kg of
--- Balado Mix already contains the 240 kg of chili powder. Purchasing
--- only buys the leaves — the level-2 raw materials plus the level-1
--- items that have no recipe of their own (potato, oil, film). The mix
--- itself is made in-house.
+--   Balado Mix already contains the 240 kg of chili powder. Purchasing
+--   only buys the leaves: the level-2 raw materials plus the level-1
+--   items that have no recipe of their own (potato, oil, film). The mix
+--   has its own recipe in the BOM, so it is made in-house.
 --
 -- Result: 8 rows across 2 levels.
+--   Level 1: Balado Seasoning Mix 600 kg, Sliced Potato 3,500 kg,
+--            Frying Oil 400 liter, Packaging Film 80g 50,000 pcs
+--   Level 2: Chili Powder 240 kg, Onion Powder 180 kg,
+--            Caster Sugar 120 kg, Salt 60 kg
+-- =====================================================
 
 WITH RECURSIVE explosion AS (
-    -- ANCHOR: direct components of finished products
+    -- ANCHOR: direct components of the finished good
     SELECT
         b.component_code,
         b.component_name,
@@ -36,7 +42,7 @@ WITH RECURSIVE explosion AS (
 
     UNION ALL
 
-    -- RECURSIVE: Go down one level and multiply sequentially.
+    -- RECURSIVE: go down one level and multiply by the parent's quantity
     SELECT
         b.component_code,
         b.component_name,

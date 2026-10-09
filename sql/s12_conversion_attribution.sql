@@ -1,24 +1,32 @@
+-- =====================================================
 -- S12: 7-day conversion attribution
+-- =====================================================
+-- Conversion = the user placed an order within 7 days of first seeing
+--   their variant: first exposure <= order time < first exposure + 7
+--   days, the same rule as fct_ab_users. Only the first order counts:
+--   this measures whether they converted, not how often they bought.
 --
--- Conversion = user placed an order within 7 days of first seeing their
--- variant. Only the first order counts: this measures whether they
--- converted, not how often they bought.
---
--- LEFT JOIN LATERAL lets the subquery reference b.first_exposure_ts from
--- the outer row, which a plain JOIN cannot do — the search window is
--- different for every user. LEFT keeps non-converters as NULL, so
--- COUNT(order_id) counts converters while COUNT(*) counts everyone.
+-- LEFT JOIN LATERAL lets the subquery reference b.first_exposure_ts
+--   from the outer row, which a plain JOIN cannot do, because the search
+--   window is different for every user. LEFT keeps non-converters as
+--   NULL, so COUNT(order_id) counts converters while COUNT(*) counts
+--   everyone.
 --
 -- Performance note: LATERAL runs the subquery once per user (66,570
--- times). Against stg_orders_d2c, a view that re-runs its dedup logic on
--- every call, this never finished. Staging it into an indexed temp table
--- first brings it down to seconds. The temp table lives only for the
--- session, so the three setup statements below are part of the script.
+--   times). Against stg_orders_d2c, a view that re-runs its dedup logic
+--   on every call, this never finished. Staging it into an indexed temp
+--   table first brings it down to seconds. The temp table lives only for
+--   the session, so the setup statements below are part of the script.
+--   DROP TABLE IF EXISTS makes the script safe to re-run in the same
+--   session.
 --
--- Result: A = 5.893%, B = 6.809% — matches the official figures from
--- ab_analysis.py exactly, which validates the whole SQL pipeline.
+-- Result: A = 5.893%, B = 6.809%. This matches ab_analysis.py exactly,
+--   so the SQL and Python paths agree on the conversion definition.
+-- =====================================================
 
 -- Setup (session-scoped)
+DROP TABLE IF EXISTS tmp_orders;
+
 CREATE TEMP TABLE tmp_orders AS
 SELECT customer_id, order_id, order_ts_wib
 FROM analytics_staging.stg_orders_d2c;
@@ -47,7 +55,7 @@ converted AS (
         FROM tmp_orders  o
         WHERE o.customer_id  = b.user_id
           AND o.order_ts_wib >= b.first_exposure_ts
-          AND o.order_ts_wib <= b.first_exposure_ts + INTERVAL '7 days'
+          AND o.order_ts_wib <  b.first_exposure_ts + INTERVAL '7 days'
         ORDER BY o.order_ts_wib
         LIMIT 1
     ) fo  ON true

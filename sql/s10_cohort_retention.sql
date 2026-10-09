@@ -1,18 +1,23 @@
+-- =====================================================
 -- S10: D2C cohort retention, M0-M3
---
+-- =====================================================
 -- Cohort = month of a customer's first order. Registered customers only
--- (customer_id LIKE 'C%'); guest IDs starting with V cannot be tracked
--- across time.
+--   (customer_id LIKE 'C%'). Guest IDs (G...) change on every order and
+--   visitor IDs (V...) exist only inside the experiment window, so
+--   neither can be followed across months.
 --
 -- Status filter: excluded 'cancelled' only. A cancelled order never
--- became a transaction, but 'refunded' did (money moved), and
--- 'processing' only exists in June — filtering it would shrink the
--- June cohort by 28% for reasons of data maturity, not behaviour.
+--   became a transaction, but 'refunded' did (money moved), and
+--   'processing' only exists in June. Filtering it would shrink the
+--   June cohort by 27% (321 -> 234) for reasons of data maturity, not
+--   behaviour.
 --
 -- COUNT(DISTINCT customer_id), not COUNT(*): retention counts people,
--- not orders. There are ~3 orders per customer in this dataset.
+--   not orders. Registered customers average ~3 orders each.
 --
--- Result: 6 rows. See README for the retention findings.
+-- Result: 6 rows. Zeros in the lower right are right-censoring (data
+--   ends 30 June), not lost customers. See README for findings.
+-- =====================================================
 
 WITH orders AS (
     -- LAYER 1: Monthly orders, registered customers only.
@@ -45,7 +50,7 @@ joined AS (
     JOIN cohorts  c  ON o.customer_id = c.customer_id
 )
 
-    -- LAYER 4: pivot jadi M0-M3
+-- LAYER 4: pivot into M0-M3 columns
 SELECT
     cohort_month,
     COUNT(DISTINCT customer_id) FILTER (WHERE month_number = 0)  AS m0,

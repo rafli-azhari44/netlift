@@ -5,32 +5,33 @@
 --   measured by shipped quantity, to plan warehouse slotting (fast
 --   movers go closest to the picking area).
 --
--- Decisions I made:
---   - Excluded return lines (is_return). A heavily returned SKU is not
---     a fast mover, and returns carry negative qty, which would quietly
---     deflate the totals.
+-- Decisions:
+--   - Excluded return lines (is_return). Returns carry negative qty,
+--     which would quietly deflate the totals.
 --   - Used RANK() as the question asks. Note the trade-off: on a tie at
 --     position 3, RANK() returns more than 3 rows for that warehouse.
 --     If ops needs exactly 3 slots, ROW_NUMBER() would be the safer
---     choice. No tie hits the top 3 in the current data.
+--     choice. No tie reaches the top 3 in the current data.
 --   - Joined via shipments, not orders. Warehouse is only recorded at
---     shipment level, so cancelled orders (never shipped) drop out
---     naturally — which is correct here, since unshipped units occupy
---     no slot.
+--     shipment level, so cancelled orders (never shipped) drop out on
+--     their own. That is correct here: unshipped units occupy no slot.
 --
--- Result: 9 rows (3 warehouses x top 3)
+-- Result: 9 rows (3 warehouses x top 3).
 --
 -- Observations:
 --   - WH-CKR dwarfs the others: 11,442 units for its top SKU versus
---     2,311 at WH-BDG. Cikarang is the primary warehouse.
+--     2,311 at WH-BDG and 1,634 at WH-TGR. Cikarang is the primary
+--     warehouse, with about 64% of all shipments.
 --   - The same two hero SKUs (SGR-LMN-350, KRK-BLD-080) take positions
 --     1 and 2 in all three warehouses.
---   - Position 3 differs per warehouse (KRK-PDM-080 / SGR-APL-350 /
---     KRK-RLA-080), so slotting should not be standardised nationally.
---     This is exactly why ops asked for a per-warehouse breakdown.
---   - Sharp cliff at WH-CKR: ranks 1-2 sit near 11k, rank 3 drops to
---     4,427. Demand is concentrated on the two promo SKUs at the main
---     warehouse — likely related to the stockout investigated in S6.
+--   - Position 3 differs per warehouse (WH-BDG KRK-PDM-080, WH-CKR
+--     SGR-APL-350, WH-TGR KRK-RLA-080), so slotting should not be
+--     standardised nationally. This is why ops asked for a
+--     per-warehouse breakdown.
+--   - Sharp cliff at WH-CKR: ranks 1-2 sit near 11,400 units, rank 3
+--     drops to 4,427. Demand at the main warehouse is concentrated on
+--     the two hero SKUs, the same pair that ran out of stock in late
+--     May (S6).
 -- =====================================================
 
 WITH qty_per_warehouse_sku AS (

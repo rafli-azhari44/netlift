@@ -10,19 +10,19 @@
 --   - D2C sales come from staging, where types are already correct.
 --
 -- FAULT B1 handling (this is the trap in the question):
---   sales_b2b contains 34 exactly-duplicated rows from DST-03 on
---   9 March — same order_id, same everything. Left in, B2B volume reads
+--   In sales_b2b, 17 rows from DST-03 on 9 March appear twice, identical
+--   in every column (34 rows in total). Left in, B2B volume reads
 --   5,535,000 pcs instead of 5,508,708: an inflation of 26,292 units
---   concentrated in a single month for a single distributor.
---   Removed with SELECT DISTINCT inside the CTE. DISTINCT is safe here
---   precisely because the duplicates are byte-identical; if they had
---   differed in any column I would have needed a dedup rule instead.
+--   concentrated in a single month for a single distributor. Removed
+--   with SELECT DISTINCT inside the CTE. DISTINCT is safe here precisely
+--   because the duplicates are identical; if they had differed in any
+--   column I would have needed a dedup rule instead.
 --
 -- Why FULL JOIN and not JOIN:
 --   Only 15 of 40 SKUs have any production record at all. The other 25
 --   sell from existing stock with no batch logged in this period. An
---   inner join would have silently dropped 150 of 240 rows — 62% of the
---   answer — and every one of those rows is a real business fact.
+--   inner join would have silently dropped 150 of 240 rows (62.5% of
+--   the answer), and every one of those rows is a real business fact.
 --   COALESCE on the join keys is required for the same reason: when a
 --   row exists on one side only, the other side's sku_code and month
 --   come back NULL.
@@ -34,59 +34,63 @@
 --     each FULL JOIN handles one mismatch at a time. Joining all three
 --     at once would have made the COALESCE chains hard to reason about.
 --
--- Result: 240 rows (40 SKUs x 6 months)
+-- Result: 240 rows (40 SKUs x 6 months).
 --
--- Finding 1 — production covers only part of the catalogue:
+-- Finding 1: production covers only part of the catalogue.
 --   15 SKUs are produced in-house; 25 are not produced at all during
 --   Jan-Jun. The produced set is almost entirely Kriuku (14 of 16 KRK
---   SKUs) plus SGR-LMN-350. KRK-DJR in both sizes is the exception:
---   it sells but is never produced.
+--   SKUs) plus SGR-LMN-350. KRK-DJR in both sizes is the exception: it
+--   sells but is never produced.
 --
---   This is not a data error — it is the shape of the business. The
---   plant runs the snack line and one beverage SKU; the rest of the
---   Segarin and Renyahku range is presumably sourced or co-packed.
---   Worth confirming with the supply chain team rather than assuming.
+--   This looks like the shape of the business rather than a data
+--   error: the plant runs the snack line and one beverage SKU, and the
+--   rest of the Segarin and Renyahku range is presumably sourced or
+--   co-packed. Worth confirming with the supply chain team rather than
+--   assuming.
 --
--- Finding 2 — produced SKUs are massively overproduced:
---   For KRK-BLD-080, January production nets 343,342 units against
---   32,633 sold — a gap of 310,709, roughly 10x. The pattern holds
---   every month and across every produced SKU.
+-- Finding 2: production far exceeds recorded sales.
+--   Over six months, net production of these 15 SKUs (after defects)
+--   is about 6x their combined B2B and D2C sales (4.7x-8.9x by SKU).
+--   One example: KRK-BLD-080 in January nets 343,342 units produced
+--   against 32,633 sold.
 --
---   Either output is measured in a different unit from sales (a real
---   possibility given FAULT V3, where WH-BDG reported cartons as
---   units), or inventory is accumulating at a rate the sales side
---   cannot absorb. The second reading would mean serious working
---   capital tied up in stock.
+--   Units do not explain it. B2B is already recorded in pieces
+--   (qty_pcs), and if production were logged in cases the true gap
+--   would be even larger. If the figures are right, stock is piling up
+--   faster than any channel in this data can sell it, which would tie
+--   up serious working capital.
 --
 --   I cannot settle this from the data alone. It is a question for
---   Mbak Sinta (is qty_produced in pieces or cases?) before anyone
---   acts on the gap figure.
+--   Mbak Sinta (how is qty_produced recorded?) and for the supply chain
+--   team (where does the output go?) before anyone acts on the gap
+--   figure.
 --
--- Finding 3 — two distinct sales channels:
+-- Finding 3: two distinct sales channels.
 --   15 SKUs have zero B2B sales and reach customers only through D2C:
---   the entire Renyahku range and most small-format Segarin. The
---   distributor network carries the large formats and the snack line.
+--   the entire Renyahku range plus seven Segarin SKUs (APL, CCO and GVA
+--   in both sizes, and SGR-MKS-1L0). Distributors carry the full Kriuku
+--   line and the other nine Segarin SKUs.
 --
 -- Open question worth raising:
---   KRK-BLD-080 and SGR-LMN-350 are the two SKUs that ran out at
---   WH-CKR in late May (S6), yet both show large positive production
---   gaps that month. Stock existed somewhere; it was not at the
---   warehouse that needed it. That points at distribution, not
---   production capacity.
+--   KRK-BLD-080 and SGR-LMN-350 are the two SKUs that ran out at WH-CKR
+--   in late May (S6), yet both show large positive production gaps that
+--   month. If the production figures are right, stock existed somewhere
+--   but not at the warehouse that needed it. That points at
+--   distribution, not production capacity.
 -- =====================================================
 
 WITH production AS (
-    -- LAYER 1a: netto defect production per SKU per month
+    -- LAYER 1a: net-of-defect production per SKU per month
     SELECT
         sku_code,
         DATE_TRUNC('month', prod_date::date)        AS month,
-        SUM(qty_produced::int - qty_defect::int)                      AS qty_produced_net
+        SUM(qty_produced::int - qty_defect::int)    AS qty_produced_net
     FROM raw.production_batches
     GROUP BY 1, 2
 ),
 
 b2b AS (
-    -- LAYER 1b
+    -- LAYER 1b: B2B sales, FAULT B1 duplicates removed
     SELECT
         sku_code,
         DATE_TRUNC('month', order_date::date)       AS month,
@@ -109,7 +113,7 @@ d2c AS (
 ),
 
 sales AS (
-    -- LAYER 2
+    -- LAYER 2: D2C and B2B combined
     SELECT
         COALESCE(d.sku_code, b.sku_code)  AS sku_code,
         COALESCE(d.month,    b.month)     AS month,

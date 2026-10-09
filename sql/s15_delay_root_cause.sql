@@ -1,19 +1,27 @@
+-- =====================================================
 -- S15: Delay root cause with GROUPING SETS
---
+-- =====================================================
 -- One query, four groupings (warehouse / courier / month / warehouse x
--- month) instead of four separate queries stitched together by hand.
+--   month) instead of four separate queries stitched together by hand.
 --
 -- "Late" = NOT is_otif, covering both late delivery and incomplete
--- fulfilment. Rows with no delivered_date excluded (FAULT S1) — unknown,
--- not late.
+--   fulfilment. Rows with no delivered_date excluded (FAULT S1): unknown,
+--   not late.
 --
 -- NULLs mark a dimension not used in that grouping, not missing data.
--- DATE_TRUNC is repeated inside GROUPING SETS because GROUP BY runs
--- before SELECT, so the alias does not exist yet.
+--   DATE_TRUNC is repeated inside GROUPING SETS because GROUP BY runs
+--   before SELECT, so the alias does not exist yet.
 --
--- Result: 31 rows. Neither warehouse nor month alone explains the spike;
--- only the crossing does — WH-CKR in May at 31.2% while the other two
--- warehouses stay near 13.5% that month. See findings log.
+-- Result: 31 rows (3 warehouses + 4 couriers + 6 months + 18
+--   warehouse-month pairs).
+--   - The courier is not the cause: all four sit at 17.6-18.0% late.
+--   - Neither warehouse nor month alone explains the spike; only the
+--     crossing does. WH-CKR in May is at 31.2% late, while the other
+--     two warehouses stay at 13.5-13.8% that month.
+--   - The failures are late deliveries, not incomplete ones (see the
+--     supporting checks in S7).
+--   See README.
+-- =====================================================
 
 SELECT
     warehouse_id,
