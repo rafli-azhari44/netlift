@@ -1,7 +1,7 @@
 with base as (
     select
         trim(sku_code)                          as sku_code,
-        initcap(sku_name)                       as sku_name,
+        sku_name                                as sku_name,
         initcap(brand)                          as brand,
         category,
         pack_size,
