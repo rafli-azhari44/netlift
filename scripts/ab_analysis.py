@@ -202,7 +202,7 @@ def analyze(users, ship, inv):
         ga, gb = g[g.variant == "A"], g[g.variant == "B"]
         print(f"   {d:8s} A={ga.converted.mean():6.2%}  B={gb.converted.mean():6.2%}"
               f"  lift={(gb.converted.mean()-ga.converted.mean())*100:+.2f}pp")
-    print("-> Lift holds across every device: the result survives, WITH a caveat.")
+    print("-> Lift is clear on three of four devices (desktop not detectable): the result survives, WITH a caveat.")
     users["fortnight"] = ((users.first_exposure_ts - EXP_START).dt.days // 14).clip(0, 2)
     print("Variant B conversion per 2-week block (novelty check):")
     for w, g in users[users.variant == "B"].groupby("fortnight"):
@@ -261,7 +261,7 @@ def analyze(users, ship, inv):
                     .agg(start="min", end="max", days="count").to_string())
     print("\nCONCLUSION: variant B wins on conversion and AOV, but the shipping")
     print("subsidy plus stockout-driven cancellations make it NET NEGATIVE.")
-    print("Full recommendation: see the memo in file 02 / README.")
+    print("Full recommendation: see docs/business-analysis.md and docs/memo-growth.md.")
 
 
 if __name__ == "__main__":
