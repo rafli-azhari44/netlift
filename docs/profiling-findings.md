@@ -246,3 +246,29 @@ P10:
 |B2B-01213|DST-02|2026-03-23|SGR-TMJ-1L0|2304|69000|11100|
 |B2B-02096|DST-02|2026-05-18|SGR-TMJ-350|3084|36000|5800|
 |B2B-01706|DST-06|2026-04-20|KRK-ORI-180|3564|91000|14600|
+
+
+
+
+
+
+
+
+
+
+
+
+## Note — how the staging layer treats faults
+
+Staging does not remove every fault. It uses three strategies:
+- FIX: repair the value (string prices, SKU padding, carton units)
+- REMOVE: drop the row (webhook duplicates, SKU-TEST)
+- FLAG: keep the row, mark it (is_return, is_scan_missing, is_bot,
+  is_invalid_negative, is_multi_variant)
+
+Flagging is deliberate: a return is a real business event, so deleting
+it would lose information Finance needs. Flagging keeps the record and
+lets the analyst decide.
+
+Practical consequence: quality checks must run against raw. Verified
+by running the same check on both layers.
