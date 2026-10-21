@@ -9,8 +9,10 @@
 --   not late.
 --
 -- NULLs mark a dimension not used in that grouping, not missing data.
---   DATE_TRUNC is repeated inside GROUPING SETS because GROUP BY runs
---   before SELECT, so the alias does not exist yet.
+--   DATE_TRUNC is written out again inside GROUPING SETS instead of the
+--   alias month. PostgreSQL would accept the alias, but SQL Server rejects
+--   a SELECT alias in GROUP BY, and if the source ever gained a column
+--   named month, PostgreSQL would group by that column instead.
 --
 -- Result: 31 rows (3 warehouses + 4 couriers + 6 months + 18
 --   warehouse-month pairs).

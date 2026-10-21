@@ -148,10 +148,10 @@ def load_from_csv(raw=RAW_DIR):
     ship["ship_month"] = ship.ship_date.dt.to_period("M").dt.to_timestamp()
     inv = pd.read_csv(raw / "inventory_daily.csv", parse_dates=["snapshot_date"])
     inv["qty_on_hand"] = np.where(
-        (inv.warehouse_id == "WH-BDG") & inv.sku_code.str.endswith("1L0"),
-        inv.qty_on_hand * 12,                      # FAULT V3: cartons -> units
-        np.where(inv.qty_on_hand < 0, np.nan,      # FAULT V2: negative stock
-                 inv.qty_on_hand))
+        inv.qty_on_hand < 0, np.nan,               # FAULT V2: negative stock, checked first
+        np.where((inv.warehouse_id == "WH-BDG") & inv.sku_code.str.endswith("1L0"),
+                inv.qty_on_hand * 12,             # FAULT V3: cartons -> units
+                inv.qty_on_hand))
     return users, ship, inv
 
 
