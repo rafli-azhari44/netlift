@@ -258,7 +258,7 @@ P10:
 
 
 
-## Note — how the staging layer treats faults
+## Note: how the staging layer treats faults
 
 Staging does not remove every fault. It uses three strategies:
 - FIX: repair the value (string prices, SKU padding, carton units)
