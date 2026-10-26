@@ -3,8 +3,12 @@
 > The free-shipping variant won on conversion and basket size. At full rollout it would still return about Rp255M less contribution per year than not running it. This repository is the audit that found out why.
 
 **Stack:** PostgreSQL, dbt, Python (pandas, SciPy), Power BI
+
 **Domain:** FMCG manufacturing and direct-to-consumer marketplace sales, Cikarang, Indonesia
+
 **Data:** synthetic and fully reproducible (`seed=42`), see [About the data](#about-the-data)
+
+**How it was built:** with a written project guide and an AI assistant (Claude) as reviewer, who did what is documented in [`docs/self-exam.md`](docs/self-exam.md)
 
 ![Unit economics and recommendations page of the Power BI dashboard](img/dashboard-4.png)
 
